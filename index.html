@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Invoice Generator</title>
+<style>
+  :root {
+    --brand: #1f3a93;
+    --brand-light: #eaf0ff;
+    --border: #d8dde6;
+    --text: #1c2430;
+    --muted: #6b7280;
+    --bg: #f4f6fb;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 28px;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+
+  /* ---------- Form panel ---------- */
+  .panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+
+  .field { margin-bottom: 14px; }
+  label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #374151;
+  }
+  label .req { color: #dc2626; }
+
+  input, select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-light);
+  }
+  input[readonly] { background: #f3f4f6; color: #4b5563; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .hidden { display: none !important; }
+
+  .actions { display: flex; gap: 10px; margin-top: 8px; }
+  button {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-primary:hover { background: #182d73; }
+  .btn-ghost { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+  .btn-ghost:hover { background: var(--brand-light); }
+
+  /* ---------- Invoice preview ---------- */
+  .invoice {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+
+  .inv-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid var(--brand);
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+  }
+  .inv-logo img { max-height: 70px; max-width: 220px; object-fit: contain; }
+  .inv-logo .placeholder {
+    height: 70px; width: 180px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 12px;
+  }
+  .inv-title { text-align: right; }
+  .inv-title h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: var(--brand); }
+  .inv-title .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .bill-to { margin-bottom: 24px; }
+  .bill-to .heading {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .bill-to .name { font-size: 16px; font-weight: 600; }
+  .bill-to .mobile { font-size: 13px; color: #4b5563; }
+
+  table.amounts { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  table.amounts td { padding: 10px 4px; font-size: 14px; }
+  table.amounts tr + tr td { border-top: 1px solid #eef1f6; }
+  table.amounts td.label { color: #4b5563; }
+  table.amounts td.value { text-align: right; font-variant-numeric: tabular-nums; }
+  table.amounts tr.total td {
+    border-top: 2px solid var(--brand);
+    font-weight: 700; font-size: 16px; color: var(--brand);
+    padding-top: 12px;
+  }
+
+  .pay-info {
+    margin-top: 26px;
+    background: #f9fafc;
+    border: 1px solid #eef1f6;
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    font-size: 13px;
+  }
+  .pay-info .k { color: var(--muted); }
+  .pay-info .v { font-weight: 600; text-align: right; }
+
+  .signature {
+    margin-top: 60px;
+    text-align: right;
+  }
+  .signature .line {
+    display: inline-block;
+    border-top: 1px solid #9ca3af;
+    padding-top: 6px;
+    min-width: 230px;
+    font-size: 13px;
+    color: #4b5563;
+    font-style: italic;
+  }
+
+  .foot-note {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ---------- Print ---------- */
+  @media print {
+    body { background: #fff; }
+    .layout { display: block; padding: 0; max-width: none; }
+    .form-side, .no-print { display: none !important; }
+    .invoice { border: none; box-shadow: none; border-radius: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ FORM ============ -->
+  <div class="form-side">
+    <div class="panel">
+      <h1>Invoice Generator</h1>
+      <p class="sub">Fill the form — the invoice updates live. Use <strong>Print / Save PDF</strong> when done.</p>
+
+      <form id="invForm" autocomplete="off">
+        <div class="field">
+          <label>Customer Name <span class="req">*</span></label>
+          <input type="text" id="custName" required placeholder="e.g. John Doe" />
+        </div>
+
+        <div class="field">
+          <label>Mobile Number <span class="req">*</span></label>
+          <input type="tel" id="mobile" required placeholder="e.g. 01700000000" />
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Total Bill <span class="req">*</span></label>
+            <input type="number" id="totalBill" min="0" step="0.01" required placeholder="0.00" />
+          </div>
+          <div class="field">
+            <label>Due Amount</label>
+            <input type="number" id="dueAmount" min="0" step="0.01" value="0" placeholder="0.00" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Total Payable</label>
+          <input type="number" id="totalPayable" readonly />
+        </div>
+
+        <div class="field">
+          <label>Payment Date <span class="req">*</span></label>
+          <input type="date" id="payDate" required />
+        </div>
+
+        <div class="field">
+          <label>Payment Method <span class="req">*</span></label>
+          <select id="payMethod" required>
+            <option value="">-- Select --</option>
+            <option value="Cash">Cash</option>
+            <option value="Mobile Banking">Mobile Banking</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+          </select>
+        </div>
+
+        <div class="field hidden" id="mbProviderField">
+          <label>Mobile Banking Provider <span class="req">*</span></label>
+          <select id="mbProvider">
+            <option value="">-- Select --</option>
+            <option value="bKash">bKash</option>
+            <option value="Nagad">Nagad</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="field hidden" id="txnField">
+          <label>Transaction ID <span class="req" id="txnReqStar">*</span></label>
+          <input type="text" id="txnId" placeholder="e.g. TXN123456" />
+        </div>
+
+        <div class="actions no-print">
+          <button type="button" class="btn-ghost" id="resetBtn">Reset</button>
+          <button type="button" class="btn-primary" id="printBtn">Print / Save PDF</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ INVOICE PREVIEW ============ -->
+  <div class="invoice" id="invoice">
+    <div class="inv-head">
+      <div class="inv-logo">
+        <!-- Replace src with your logo file (e.g. logo.png) when ready -->
+        <div class="placeholder" id="logoPlaceholder">Company Logo</div>
+        <img src="logo.png" id="logoImg" alt="Company Logo"
+             style="display:none" onload="showLogo()" onerror="hideLogo()" />
+      </div>
+      <div class="inv-title">
+        <h2>INVOICE</h2>
+        <div class="meta">
+          Invoice #: <span id="invNo">—</span><br />
+          Date: <span id="invDate">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bill-to">
+      <div class="heading">Billed To</div>
+      <div class="name" id="vName">Customer Name</div>
+      <div class="mobile" id="vMobile">—</div>
+    </div>
+
+    <table class="amounts">
+      <tr>
+        <td class="label">Total Bill</td>
+        <td class="value" id="vTotalBill">0.00</td>
+      </tr>
+      <tr>
+        <td class="label">Due Amount</td>
+        <td class="value" id="vDue">0.00</td>
+      </tr>
+      <tr class="total">
+        <td class="label">Total Payable</td>
+        <td class="value" id="vPayable">0.00</td>
+      </tr>
+    </table>
+
+    <div class="pay-info">
+      <div class="k">Payment Method</div>
+      <div class="v" id="vMethod">—</div>
+      <div class="k">Payment Date</div>
+      <div class="v" id="vPayDate">—</div>
+      <div class="k" id="vTxnLabel">Transaction ID</div>
+      <div class="v" id="vTxn">—</div>
+    </div>
+
+    <div class="signature">
+      <div class="line">System Generated Invoice<br />(Authorised Signature)</div>
+    </div>
+
+    <div class="foot-note">This is a system generated invoice and does not require a physical signature.</div>
+  </div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  // Currency symbol — change as needed
+  const CURRENCY = "৳";
+
+  function fmt(n) {
+    const num = parseFloat(n) || 0;
+    return CURRENCY + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Logo handling
+  function showLogo() { $("logoImg").style.display = "block"; $("logoPlaceholder").style.display = "none"; }
+  function hideLogo() { $("logoImg").style.display = "none"; $("logoPlaceholder").style.display = "flex"; }
+
+  // Generate a simple invoice number from current date/time
+  function makeInvNo() {
+    const d = new Date();
+    const pad = x => String(x).padStart(2, "0");
+    return `INV-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+  }
+  const INV_NO = makeInvNo();
+
+  function prettyDate(value) {
+    if (!value) return "—";
+    const d = new Date(value + "T00:00:00");
+    if (isNaN(d)) return "—";
+    return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  // Show/hide conditional fields based on payment method
+  function updateConditionalFields() {
+    const method = $("payMethod").value;
+    const mbField = $("mbProviderField");
+    const txnField = $("txnField");
+    const txnInput = $("txnId");
+
+    if (method === "Mobile Banking") {
+      mbField.classList.remove("hidden");
+      txnField.classList.remove("hidden");
+      $("mbProvider").required = true;
+      txnInput.required = true;
+    } else if (method === "Bank Transfer") {
+      mbField.classList.add("hidden");
+      $("mbProvider").required = false;
+      txnField.classList.remove("hidden");
+      txnInput.required = true;
+    } else { // Cash or none
+      mbField.classList.add("hidden");
+      txnField.classList.add("hidden");
+      $("mbProvider").required = false;
+      txnInput.required = false;
+    }
+  }
+
+  // Build the payment method display string
+  function methodDisplay() {
+    const method = $("payMethod").value;
+    if (!method) return "—";
+    if (method === "Mobile Banking") {
+      const p = $("mbProvider").value;
+      return p ? `Mobile Banking — ${p}` : "Mobile Banking";
+    }
+    return method;
+  }
+
+  // Live render the invoice
+  function render() {
+    const method = $("payMethod").value;
+    const bill = parseFloat($("totalBill").value) || 0;
+    const due = parseFloat($("dueAmount").value) || 0;
+    const payable = bill - due;
+    $("totalPayable").value = payable.toFixed(2);
+
+    $("invNo").textContent = INV_NO;
+    $("invDate").textContent = prettyDate($("payDate").value);
+
+    $("vName").textContent = $("custName").value || "Customer Name";
+    $("vMobile").textContent = $("mobile").value || "—";
+
+    $("vTotalBill").textContent = fmt(bill);
+    $("vDue").textContent = fmt(due);
+    $("vPayable").textContent = fmt(payable);
+
+    $("vMethod").textContent = methodDisplay();
+    $("vPayDate").textContent = prettyDate($("payDate").value);
+
+    // Transaction ID row — only meaningful for non-cash
+    if (method === "Cash" || method === "") {
+      $("vTxn").textContent = method === "Cash" ? "N/A (Cash)" : "—";
+    } else {
+      $("vTxn").textContent = $("txnId").value || "—";
+    }
+  }
+
+  // Validate then print
+  function handlePrint() {
+    const form = $("invForm");
+    updateConditionalFields();
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    render();
+    window.print();
+  }
+
+  // Wire up events
+  ["custName","mobile","totalBill","dueAmount","payDate","payMethod","mbProvider","txnId"]
+    .forEach(id => {
+      $(id).addEventListener("input", render);
+      $(id).addEventListener("change", render);
+    });
+
+  $("payMethod").addEventListener("change", () => { updateConditionalFields(); render(); });
+  $("printBtn").addEventListener("click", handlePrint);
+  $("resetBtn").addEventListener("click", () => {
+    $("invForm").reset();
+    $("dueAmount").value = "0";
+    updateConditionalFields();
+    render();
+  });
+
+  // Default payment date = today
+  (function init() {
+    const t = new Date();
+    const pad = x => String(x).padStart(2, "0");
+    $("payDate").value = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    updateConditionalFields();
+    render();
+  })();
+</script>
+</body>
+</html>
