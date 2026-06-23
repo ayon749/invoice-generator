@@ -111,7 +111,7 @@
     padding-bottom: 20px;
     margin-bottom: 24px;
   }
-  .inv-logo img { max-height: 70px; max-width: 220px; object-fit: contain; }
+  .inv-logo img { max-height: 110px; max-width: 200px; object-fit: contain; }
   .inv-logo .placeholder {
     height: 70px; width: 180px;
     border: 1px dashed var(--border);
@@ -254,7 +254,8 @@
 
         <div class="actions no-print">
           <button type="button" class="btn-ghost" id="resetBtn">Reset</button>
-          <button type="button" class="btn-primary" id="printBtn">Print / Save PDF</button>
+          <button type="button" class="btn-ghost" id="printBtn">Print</button>
+          <button type="button" class="btn-primary" id="pdfBtn">Download PDF</button>
         </div>
       </form>
     </div>
@@ -317,6 +318,7 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
   const $ = id => document.getElementById(id);
 
@@ -412,16 +414,64 @@
     }
   }
 
-  // Validate then print
-  function handlePrint() {
+  // Validate the form; returns true if ready to export
+  function validateForReady() {
     const form = $("invForm");
     updateConditionalFields();
     if (!form.checkValidity()) {
       form.reportValidity();
-      return;
+      return false;
     }
     render();
+    return true;
+  }
+
+  // Browser print dialog (user can choose "Save as PDF" there too)
+  function handlePrint() {
+    if (!validateForReady()) return;
     window.print();
+  }
+
+  // Build a safe file name for the PDF
+  function pdfFileName() {
+    const name = ($("custName").value || "invoice")
+      .trim().replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
+    return `Invoice-${INV_NO}-${name}.pdf`;
+  }
+
+  // Generate and download a real PDF file (no print dialog needed)
+  function downloadPDF() {
+    if (!validateForReady()) return;
+
+    const btn = $("pdfBtn");
+    const original = btn.textContent;
+
+    if (typeof window.html2pdf === "undefined") {
+      // Library failed to load (e.g. offline) — fall back to print dialog
+      alert("PDF library could not load. Opening the print dialog instead — choose \"Save as PDF\" there.");
+      window.print();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+
+    const opt = {
+      margin: 8,
+      filename: pdfFileName(),
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+
+    html2pdf().set(opt).from($("invoice")).save()
+      .then(() => { btn.disabled = false; btn.textContent = original; })
+      .catch(err => {
+        console.error("PDF generation failed:", err);
+        btn.disabled = false;
+        btn.textContent = original;
+        alert("Sorry, the PDF could not be generated. Try the Print button and choose \"Save as PDF\".");
+      });
   }
 
   // Wire up events
@@ -433,6 +483,7 @@
 
   $("payMethod").addEventListener("change", () => { updateConditionalFields(); render(); });
   $("printBtn").addEventListener("click", handlePrint);
+  $("pdfBtn").addEventListener("click", downloadPDF);
   $("resetBtn").addEventListener("click", () => {
     $("invForm").reset();
     $("dueAmount").value = "0";
