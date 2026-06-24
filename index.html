@@ -119,6 +119,10 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--muted); font-size: 12px;
   }
+  .resort-info { margin-top: 8px; }
+  .resort-info .resort-name { font-size: 15px; font-weight: 700; color: var(--brand); }
+  .resort-info .resort-line { font-size: 11px; color: #4b5563; line-height: 1.5; }
+
   .inv-title { text-align: right; }
   .inv-title h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: var(--brand); }
   .inv-title .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
@@ -233,6 +237,11 @@
           <input type="tel" id="mobile" required placeholder="e.g. 01700000000" />
         </div>
 
+        <div class="field">
+          <label>Room Type <span class="req">*</span></label>
+          <input type="text" id="roomType" required placeholder="e.g. Deluxe Couple (Sea View)" />
+        </div>
+
         <div class="row2">
           <div class="field">
             <label>Check-In Date <span class="req">*</span></label>
@@ -313,6 +322,11 @@
         <div class="placeholder" id="logoPlaceholder">Company Logo</div>
         <img src="logo.png" id="logoImg" alt="Company Logo"
              style="display:none" onload="showLogo()" onerror="hideLogo()" />
+        <div class="resort-info">
+          <div class="resort-name" id="rName"></div>
+          <div class="resort-line" id="rLocation"></div>
+          <div class="resort-line" id="rContact"></div>
+        </div>
       </div>
       <div class="inv-title">
         <h2>INVOICE</h2>
@@ -328,6 +342,7 @@
       <div class="name" id="vName">Customer Name</div>
       <div class="mobile" id="vMobile">—</div>
       <div class="stay-info">
+        <div id="vRoomWrap" style="flex-basis:100%"><span class="k">Room Type</span><span class="v" id="vRoomType">—</span></div>
         <div><span class="k">Check-In</span><span class="v" id="vCheckIn">—</span></div>
         <div><span class="k">Check-Out</span><span class="v" id="vCheckOut">—</span></div>
         <div id="vNightsWrap"><span class="k">Nights</span><span class="v" id="vNights">—</span></div>
@@ -389,6 +404,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
   const $ = id => document.getElementById(id);
+
+  // ===== Resort details — EDIT THESE with your real information =====
+  const RESORT = {
+    name: "Nilima Beach Resort",
+    location: "— location / address —",
+    phone: "— phone number —",
+    email: "— email —"
+  };
 
   // Currency symbol — change as needed
   const CURRENCY = "৳";
@@ -469,6 +492,11 @@
 
     $("vName").textContent = $("custName").value || "Customer Name";
     $("vMobile").textContent = $("mobile").value || "—";
+
+    // Room type
+    const room = $("roomType").value;
+    $("vRoomType").textContent = room || "—";
+    $("vRoomWrap").style.display = room ? "" : "none";
 
     // Stay dates + nights
     const ci = $("checkIn").value;
@@ -607,7 +635,7 @@
   }
 
   // Wire up events
-  ["custName","mobile","checkIn","checkOut","totalAmount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
+  ["custName","mobile","roomType","checkIn","checkOut","totalAmount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
     .forEach(id => {
       $(id).addEventListener("input", render);
       $(id).addEventListener("change", render);
@@ -622,11 +650,22 @@
     render();
   });
 
+  // Populate the resort letterhead from the RESORT config
+  function fillResortInfo() {
+    $("rName").textContent = RESORT.name || "";
+    $("rLocation").textContent = RESORT.location || "";
+    const contact = [];
+    if (RESORT.phone) contact.push("Phone: " + RESORT.phone);
+    if (RESORT.email) contact.push("Email: " + RESORT.email);
+    $("rContact").textContent = contact.join("  •  ");
+  }
+
   // Default payment date = today
   (function init() {
     const t = new Date();
     const pad = x => String(x).padStart(2, "0");
     $("payDate").value = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    fillResortInfo();
     updateConditionalFields();
     render();
   })();
