@@ -146,6 +146,7 @@
     color: var(--muted); margin-bottom: 2px;
   }
   .stay-info .v { font-size: 14px; font-weight: 600; color: var(--text); }
+  .stay-note { margin-top: 8px; font-size: 11px; color: var(--muted); }
 
   table.amounts { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
   table.amounts td { padding: 7px 4px; font-size: 14px; }
@@ -236,6 +237,11 @@
         <div class="field">
           <label>Mobile Number <span class="req">*</span></label>
           <input type="tel" id="mobile" required placeholder="e.g. 01700000000" />
+        </div>
+
+        <div class="field">
+          <label>Booking ID <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+          <input type="text" id="bookingId" placeholder="e.g. 1189" />
         </div>
 
         <div class="field">
@@ -345,6 +351,7 @@
         <h2>INVOICE</h2>
         <div class="meta">
           Invoice #: <span id="invNo">—</span><br />
+          <span id="bookingWrap">Booking ID: <span id="vBookingId">—</span><br /></span>
           Date: <span id="invDate">—</span>
         </div>
       </div>
@@ -360,6 +367,7 @@
         <div><span class="k">Check-Out</span><span class="v" id="vCheckOut">—</span></div>
         <div id="vNightsWrap"><span class="k">Nights</span><span class="v" id="vNights">—</span></div>
       </div>
+      <div class="stay-note" id="stayNote"></div>
     </div>
 
     <table class="amounts">
@@ -427,7 +435,9 @@
     name: "Nilima Beach Resort",
     location: "Sea in Point, Sugandha Beach, Cox's Bazar, Bangladesh",
     phone: "01831878833, 01333316942",
-    email: "nilimabeachresort.bd@gmail.com"
+    email: "nilimabeachresort.bd@gmail.com",
+    checkInTime: "1:00 PM",
+    checkOutTime: "11:00 AM"
   };
 
   // Currency symbol — change as needed
@@ -506,6 +516,11 @@
 
     $("invNo").textContent = INV_NO;
     $("invDate").textContent = prettyDate($("payDate").value);
+
+    // Booking ID (optional) — show in header only when provided
+    const bid = $("bookingId").value.trim();
+    $("vBookingId").textContent = bid || "—";
+    $("bookingWrap").style.display = bid ? "" : "none";
 
     $("vName").textContent = $("custName").value || "Customer Name";
     $("vMobile").textContent = $("mobile").value || "—";
@@ -652,7 +667,7 @@
   }
 
   // Wire up events
-  ["custName","mobile","roomType","checkIn","checkOut","totalAmount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
+  ["custName","mobile","bookingId","roomType","checkIn","checkOut","totalAmount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
     .forEach(id => {
       $(id).addEventListener("input", render);
       $(id).addEventListener("change", render);
@@ -675,6 +690,8 @@
     if (RESORT.phone) contact.push("Phone: " + RESORT.phone);
     if (RESORT.email) contact.push("Email: " + RESORT.email);
     $("rContact").textContent = contact.join("  •  ");
+    $("stayNote").textContent =
+      "Standard Check-In: " + RESORT.checkInTime + "  •  Check-Out: " + RESORT.checkOutTime;
   }
 
   // Default payment date = today
