@@ -211,6 +211,7 @@
   }
 
   /* ---------- Capture mode (used while generating the PDF) ---------- */
+  body.capturing { overflow: hidden !important; }
   body.capturing .form-side,
   body.capturing .no-print { display: none !important; }
   body.capturing .layout {
@@ -652,8 +653,12 @@
         logoBox = { x: lR.left - eR.left, y: lR.top - eR.top, w: lR.width, h: lR.height };
       }
       const renderWidth = el.offsetWidth;
+      const renderHeight = el.scrollHeight;
 
-      // Step 1: capture the real invoice element.
+      // Step 1: capture the real invoice element. Pin the capture rectangle
+      // AND the virtual window to the element's exact size so html2canvas
+      // can't drift with the device's scroll position or viewport width
+      // (which was clipping the left side on some phones).
       const captured = await html2pdf().set({
         html2canvas: {
           scale: 2,
@@ -661,7 +666,12 @@
           backgroundColor: "#ffffff",
           scrollX: 0,
           scrollY: 0,
-          windowWidth: 900
+          x: 0,
+          y: 0,
+          width: renderWidth,
+          height: renderHeight,
+          windowWidth: renderWidth,
+          windowHeight: renderHeight
         }
       }).from(el).toCanvas().get("canvas");
 
