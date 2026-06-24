@@ -210,6 +210,24 @@
     color: var(--muted);
   }
 
+  /* ---------- Capture mode (used while generating the PDF) ---------- */
+  body.capturing .form-side,
+  body.capturing .no-print { display: none !important; }
+  body.capturing .layout {
+    display: block !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.capturing .invoice {
+    width: 760px !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
   /* ---------- Print ---------- */
   @media print {
     body { background: #fff; }
@@ -613,87 +631,42 @@
     btn.disabled = true;
     btn.textContent = "Generating…";
 
-    const CAPTURE_WIDTH = 720;
-
-    // Convert the (already-loaded) logo to an inline data URL. html2canvas
-    // reliably draws data URLs, but can fail to re-fetch a cloned <img> by its
-    // relative src — which previously left the logo blank in the PDF.
-    let logoDataUrl = null;
+    const el = $("invoice");
     const origLogo = $("logoImg");
-    if (origLogo && origLogo.complete && origLogo.naturalWidth) {
-      try {
-        const lc = document.createElement("canvas");
-        lc.width = origLogo.naturalWidth;
-        lc.height = origLogo.naturalHeight;
-        lc.getContext("2d").drawImage(origLogo, 0, 0);
-        logoDataUrl = lc.toDataURL("image/png");
-      } catch (e) { /* keep logoDataUrl null; clone falls back to src */ }
-    }
 
-    // Capture an ISOLATED off-screen clone of the invoice at a fixed width.
-    // Cloning it outside the page's grid layout guarantees the whole invoice
-    // is captured (the in-layout element sat in a column, which clipped the
-    // left side). It also makes the PDF identical on phone and desktop.
-    const holder = document.createElement("div");
-    holder.style.position = "fixed";
-    holder.style.left = "-10000px";
-    holder.style.top = "0";
-    holder.style.width = CAPTURE_WIDTH + "px";
-    holder.style.background = "#ffffff";
-    holder.style.zIndex = "-1";
-
-    const clone = $("invoice").cloneNode(true);
-    clone.style.width = CAPTURE_WIDTH + "px";
-    clone.style.maxWidth = "none";
-    clone.style.margin = "0";
-    clone.style.border = "none";
-    clone.style.borderRadius = "0";
-    clone.style.boxShadow = "none";
-    holder.appendChild(clone);
-    document.body.appendChild(holder);
+    // Force a capture-friendly layout: the invoice becomes a full-width,
+    // single-column block at the top-left of the page. Capturing the REAL
+    // element (not an off-screen clone) renders reliably on phones, and the
+    // single-column layout avoids the multi-column offset that clipped the PDF.
+    document.body.classList.add("capturing");
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 90)); // let layout settle
 
     try {
-      // Prepare the cloned logo (also gets it out of html2canvas's way; we
-      // paint the real logo on afterwards to be safe).
-      const cloneImg = clone.querySelector("#logoImg");
+      // Measure the logo's position within the invoice (for compositing).
       let logoBox = null;
-      if (cloneImg) {
-        cloneImg.removeAttribute("onload");
-        cloneImg.removeAttribute("onerror");
-        if (logoDataUrl) {
-          cloneImg.src = logoDataUrl;
-          cloneImg.style.display = "block";
-          const clonePh = clone.querySelector("#logoPlaceholder");
-          if (clonePh) clonePh.style.display = "none";
-        }
-        await new Promise(resolve => {
-          if (cloneImg.complete && cloneImg.naturalWidth) return resolve();
-          cloneImg.onload = resolve;
-          cloneImg.onerror = resolve;
-          setTimeout(resolve, 2000);
-        });
-        // Record the logo's position/size within the clone for compositing.
-        if (logoDataUrl && cloneImg.getBoundingClientRect().width) {
-          const cR = clone.getBoundingClientRect();
-          const lR = cloneImg.getBoundingClientRect();
-          logoBox = { x: lR.left - cR.left, y: lR.top - cR.top, w: lR.width, h: lR.height };
-        }
+      if (origLogo && origLogo.complete && origLogo.naturalWidth &&
+          origLogo.getBoundingClientRect().width) {
+        const eR = el.getBoundingClientRect();
+        const lR = origLogo.getBoundingClientRect();
+        logoBox = { x: lR.left - eR.left, y: lR.top - eR.top, w: lR.width, h: lR.height };
       }
-      const cloneRenderWidth = clone.offsetWidth || CAPTURE_WIDTH;
+      const renderWidth = el.offsetWidth;
 
-      // Step 1: render the clone to a single canvas.
+      // Step 1: capture the real invoice element.
       const captured = await html2pdf().set({
         html2canvas: {
           scale: 2,
           useCORS: true,
           backgroundColor: "#ffffff",
-          windowWidth: CAPTURE_WIDTH + 80
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 900
         }
-      }).from(clone).toCanvas().get("canvas");
+      }).from(el).toCanvas().get("canvas");
 
-      // Composite onto a FRESH canvas we fully control. (Drawing directly onto
-      // the html2canvas-returned canvas is unreliable.) Copy the capture, then
-      // paint the real logo on top so it's always present in the PDF.
+      // Composite onto a FRESH canvas we fully control, then repaint the real
+      // logo on top (html2canvas can be unreliable drawing images).
       const canvas = document.createElement("canvas");
       canvas.width = captured.width;
       canvas.height = captured.height;
@@ -701,17 +674,17 @@
       cctx.fillStyle = "#ffffff";
       cctx.fillRect(0, 0, canvas.width, canvas.height);
       cctx.drawImage(captured, 0, 0);
-      if (logoBox && origLogo) {
+      if (logoBox && origLogo && renderWidth) {
         try {
-          const sx = captured.width / cloneRenderWidth;
+          const sx = captured.width / renderWidth;
           cctx.drawImage(
             origLogo, logoBox.x * sx, logoBox.y * sx, logoBox.w * sx, logoBox.h * sx
           );
         } catch (e) { /* capture already has whatever html2canvas drew */ }
       }
 
-      // Step 2: size the page to hold the whole image on ONE page.
-      // Keep standard A4 (210×297) when it fits; only grow taller if needed.
+      // Step 2: one-page PDF sized to the content. Keep standard A4 when it
+      // fits; only grow taller if needed (never spills to a 2nd page).
       const margin = 8;
       const pageW = 210;
       const usableW = pageW - margin * 2;
@@ -728,7 +701,7 @@
       console.error("PDF generation failed:", err);
       alert("Sorry, the PDF could not be generated. Try the Print button and choose \"Save as PDF\".");
     } finally {
-      document.body.removeChild(holder);
+      document.body.classList.remove("capturing");
       btn.disabled = false;
       btn.textContent = original;
     }
