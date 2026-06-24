@@ -208,18 +208,18 @@
 
         <div class="row2">
           <div class="field">
-            <label>Total Bill <span class="req">*</span></label>
-            <input type="number" id="totalBill" min="0" step="0.01" required placeholder="0.00" />
+            <label>Total Amount <span class="req">*</span></label>
+            <input type="number" id="totalAmount" min="0" step="0.01" required placeholder="0.00" />
           </div>
           <div class="field">
-            <label>Due Amount</label>
-            <input type="number" id="dueAmount" min="0" step="0.01" value="0" placeholder="0.00" />
+            <label>Payable Amount (Paid Now) <span class="req">*</span></label>
+            <input type="number" id="payableAmount" min="0" step="0.01" required placeholder="0.00" />
           </div>
         </div>
 
         <div class="field">
-          <label>Total Payable</label>
-          <input type="number" id="totalPayable" readonly />
+          <label>Due Amount <span style="font-weight:400;color:var(--muted)">(auto)</span></label>
+          <input type="number" id="dueAmount" readonly />
         </div>
 
         <div class="field">
@@ -287,16 +287,16 @@
 
     <table class="amounts">
       <tr>
-        <td class="label">Total Bill</td>
-        <td class="value" id="vTotalBill">0.00</td>
+        <td class="label">Total Amount</td>
+        <td class="value" id="vTotalAmount">0.00</td>
       </tr>
       <tr>
         <td class="label">Due Amount</td>
         <td class="value" id="vDue">0.00</td>
       </tr>
       <tr class="total">
-        <td class="label">Total Payable</td>
-        <td class="value" id="vPayable">0.00</td>
+        <td class="label">Total Paid</td>
+        <td class="value" id="vPaid">0.00</td>
       </tr>
     </table>
 
@@ -388,10 +388,11 @@
   // Live render the invoice
   function render() {
     const method = $("payMethod").value;
-    const bill = parseFloat($("totalBill").value) || 0;
-    const due = parseFloat($("dueAmount").value) || 0;
-    const payable = bill - due;
-    $("totalPayable").value = payable.toFixed(2);
+    const total = parseFloat($("totalAmount").value) || 0;
+    const paid = parseFloat($("payableAmount").value) || 0;
+    let due = total - paid;
+    if (due < 0) due = 0;
+    $("dueAmount").value = due.toFixed(2);
 
     $("invNo").textContent = INV_NO;
     $("invDate").textContent = prettyDate($("payDate").value);
@@ -399,9 +400,9 @@
     $("vName").textContent = $("custName").value || "Customer Name";
     $("vMobile").textContent = $("mobile").value || "—";
 
-    $("vTotalBill").textContent = fmt(bill);
+    $("vTotalAmount").textContent = fmt(total);
     $("vDue").textContent = fmt(due);
-    $("vPayable").textContent = fmt(payable);
+    $("vPaid").textContent = fmt(paid);
 
     $("vMethod").textContent = methodDisplay();
     $("vPayDate").textContent = prettyDate($("payDate").value);
@@ -475,7 +476,7 @@
   }
 
   // Wire up events
-  ["custName","mobile","totalBill","dueAmount","payDate","payMethod","mbProvider","txnId"]
+  ["custName","mobile","totalAmount","payableAmount","payDate","payMethod","mbProvider","txnId"]
     .forEach(id => {
       $(id).addEventListener("input", render);
       $(id).addEventListener("change", render);
@@ -486,7 +487,6 @@
   $("pdfBtn").addEventListener("click", downloadPDF);
   $("resetBtn").addEventListener("click", () => {
     $("invForm").reset();
-    $("dueAmount").value = "0";
     updateConditionalFields();
     render();
   });
