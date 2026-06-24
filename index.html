@@ -156,8 +156,23 @@
   .pay-info .k { color: var(--muted); }
   .pay-info .v { font-weight: 600; text-align: right; }
 
+  .terms {
+    margin-top: 26px;
+    border-top: 1px solid #eef1f6;
+    padding-top: 16px;
+  }
+  .terms .heading {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .terms ol {
+    margin: 0; padding-left: 18px;
+    font-size: 12px; color: #4b5563;
+  }
+  .terms li { margin-bottom: 4px; }
+
   .signature {
-    margin-top: 60px;
+    margin-top: 48px;
     text-align: right;
   }
   .signature .line {
@@ -321,6 +336,17 @@
       <div class="v" id="vPayDate">—</div>
       <div class="k" id="vTxnLabel">Transaction ID</div>
       <div class="v" id="vTxn">—</div>
+    </div>
+
+    <!-- Demo terms — replace with your real terms & conditions later -->
+    <div class="terms">
+      <div class="heading">Terms &amp; Conditions</div>
+      <ol>
+        <li>Payment once made is non-refundable and non-transferable.</li>
+        <li>This invoice is valid only upon receipt of the full payable amount.</li>
+        <li>Any due amount must be cleared within 7 days of the invoice date.</li>
+        <li>Please retain this invoice for your records and future reference.</li>
+      </ol>
     </div>
 
     <div class="signature">
