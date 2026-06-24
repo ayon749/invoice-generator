@@ -533,8 +533,11 @@
     return `Invoice-${INV_NO}-${name}.pdf`;
   }
 
-  // Generate and download a real PDF file (no print dialog needed)
-  function downloadPDF() {
+  // Generate and download a real PDF file (no print dialog needed).
+  // The invoice is rendered to a single canvas, then scaled to fit on ONE
+  // A4 page — so it never spills onto a blank second page, no matter how
+  // long the terms get.
+  async function downloadPDF() {
     if (!validateForReady()) return;
 
     const btn = $("pdfBtn");
@@ -550,35 +553,57 @@
     btn.disabled = true;
     btn.textContent = "Generating…";
 
-    // Scroll to top so html2canvas doesn't clip content below the fold
-    // (the classic cause of the signature/footer being cut off).
+    // Scroll to top so html2canvas doesn't clip content below the fold.
     window.scrollTo(0, 0);
 
     const el = $("invoice");
-    const opt = {
-      margin: 8,
-      filename: pdfFileName(),
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: el.scrollHeight + 80
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    };
 
-    html2pdf().set(opt).from(el).save()
-      .then(() => { btn.disabled = false; btn.textContent = original; })
-      .catch(err => {
-        console.error("PDF generation failed:", err);
-        btn.disabled = false;
-        btn.textContent = original;
-        alert("Sorry, the PDF could not be generated. Try the Print button and choose \"Save as PDF\".");
-      });
+    // Capture at a fixed desktop width so the PDF looks identical whether it's
+    // generated from a phone or a desktop (mobile's narrow/tall layout was
+    // what pushed content onto a 2nd page).
+    const CAPTURE_WIDTH = 720;
+    const prevWidth = el.style.width;
+    const prevMaxWidth = el.style.maxWidth;
+    el.style.width = CAPTURE_WIDTH + "px";
+    el.style.maxWidth = "none";
+
+    try {
+      // Step 1: render the invoice to a single canvas.
+      const canvas = await html2pdf().set({
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 1000,
+          windowHeight: el.scrollHeight + 40
+        }
+      }).from(el).toCanvas().get("canvas");
+
+      // Step 2: size the page to hold the whole image on ONE page.
+      // Keep standard A4 (210×297) when it fits; only grow taller if needed.
+      const margin = 8;
+      const pageW = 210;
+      const usableW = pageW - margin * 2;
+      const imgH = usableW * canvas.height / canvas.width;
+      const pageH = Math.max(297, Math.ceil(imgH + margin * 2));
+
+      await html2pdf().set({
+        margin: margin,
+        filename: pdfFileName(),
+        image: { type: "jpeg", quality: 0.98 },
+        jsPDF: { unit: "mm", format: [pageW, pageH], orientation: "portrait" }
+      }).from(canvas, "canvas").save();
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Sorry, the PDF could not be generated. Try the Print button and choose \"Save as PDF\".");
+    } finally {
+      el.style.width = prevWidth;
+      el.style.maxWidth = prevMaxWidth;
+      btn.disabled = false;
+      btn.textContent = original;
+    }
   }
 
   // Wire up events
