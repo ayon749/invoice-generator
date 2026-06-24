@@ -212,14 +212,20 @@
             <input type="number" id="totalAmount" min="0" step="0.01" required placeholder="0.00" />
           </div>
           <div class="field">
-            <label>Payable Amount (Paid Now) <span class="req">*</span></label>
-            <input type="number" id="payableAmount" min="0" step="0.01" required placeholder="0.00" />
+            <label>Previously Paid <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+            <input type="number" id="prevPaid" min="0" step="0.01" placeholder="0.00" />
           </div>
         </div>
 
-        <div class="field">
-          <label>Due Amount <span style="font-weight:400;color:var(--muted)">(auto)</span></label>
-          <input type="number" id="dueAmount" readonly />
+        <div class="row2">
+          <div class="field">
+            <label>Payable Amount (Paid Now) <span class="req">*</span></label>
+            <input type="number" id="payableAmount" min="0" step="0.01" required placeholder="0.00" />
+          </div>
+          <div class="field">
+            <label>Due Amount <span style="font-weight:400;color:var(--muted)">(auto)</span></label>
+            <input type="number" id="dueAmount" readonly />
+          </div>
         </div>
 
         <div class="field">
@@ -289,6 +295,14 @@
       <tr>
         <td class="label">Total Amount</td>
         <td class="value" id="vTotalAmount">0.00</td>
+      </tr>
+      <tr id="rowPrevPaid">
+        <td class="label">Previously Paid</td>
+        <td class="value" id="vPrevPaid">0.00</td>
+      </tr>
+      <tr>
+        <td class="label">Paid Now</td>
+        <td class="value" id="vPaidNow">0.00</td>
       </tr>
       <tr>
         <td class="label">Due Amount</td>
@@ -389,8 +403,10 @@
   function render() {
     const method = $("payMethod").value;
     const total = parseFloat($("totalAmount").value) || 0;
-    const paid = parseFloat($("payableAmount").value) || 0;
-    let due = total - paid;
+    const prevPaid = parseFloat($("prevPaid").value) || 0;
+    const paidNow = parseFloat($("payableAmount").value) || 0;
+    const totalPaid = prevPaid + paidNow;
+    let due = total - totalPaid;
     if (due < 0) due = 0;
     $("dueAmount").value = due.toFixed(2);
 
@@ -401,8 +417,13 @@
     $("vMobile").textContent = $("mobile").value || "—";
 
     $("vTotalAmount").textContent = fmt(total);
+    $("vPrevPaid").textContent = fmt(prevPaid);
+    $("vPaidNow").textContent = fmt(paidNow);
     $("vDue").textContent = fmt(due);
-    $("vPaid").textContent = fmt(paid);
+    $("vPaid").textContent = fmt(totalPaid);
+
+    // Hide the "Previously Paid" row on the invoice when it's zero
+    $("rowPrevPaid").style.display = prevPaid > 0 ? "" : "none";
 
     $("vMethod").textContent = methodDisplay();
     $("vPayDate").textContent = prettyDate($("payDate").value);
@@ -489,7 +510,7 @@
   }
 
   // Wire up events
-  ["custName","mobile","totalAmount","payableAmount","payDate","payMethod","mbProvider","txnId"]
+  ["custName","mobile","totalAmount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
     .forEach(id => {
       $(id).addEventListener("input", render);
       $(id).addEventListener("change", render);
