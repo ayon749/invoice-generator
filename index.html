@@ -457,15 +457,28 @@
     btn.disabled = true;
     btn.textContent = "Generating…";
 
+    // Scroll to top so html2canvas doesn't clip content below the fold
+    // (the classic cause of the signature/footer being cut off).
+    window.scrollTo(0, 0);
+
+    const el = $("invoice");
     const opt = {
       margin: 8,
       filename: pdfFileName(),
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: el.scrollHeight + 80
+      },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
 
-    html2pdf().set(opt).from($("invoice")).save()
+    html2pdf().set(opt).from(el).save()
       .then(() => { btn.disabled = false; btn.textContent = original; })
       .catch(err => {
         console.error("PDF generation failed:", err);
