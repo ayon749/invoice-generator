@@ -445,7 +445,7 @@
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
   const $ = id => document.getElementById(id);
 
@@ -612,106 +612,195 @@
     return `Invoice-${INV_NO}-${name}.pdf`;
   }
 
-  // Generate and download a real PDF file (no print dialog needed).
-  // The invoice is rendered to a single canvas, then scaled to fit on ONE
-  // A4 page — so it never spills onto a blank second page, no matter how
-  // long the terms get.
-  async function downloadPDF() {
-    if (!validateForReady()) return;
+  // Get the logo as a compact JPEG data URL (or null) for embedding in the PDF.
+  // Downscaled to ~300px and flattened on white so the embedded file stays small.
+  function getLogoDataUrl() {
+    const img = $("logoImg");
+    if (img && img.complete && img.naturalWidth) {
+      try {
+        const max = 300;
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.round(img.naturalWidth * scale);
+        const h = Math.round(img.naturalHeight * scale);
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        return c.toDataURL("image/jpeg", 0.92);
+      } catch (e) { /* fall through */ }
+    }
+    return null;
+  }
 
+  // Build the invoice as a NATIVE jsPDF document (real text + vector lines,
+  // no screenshot). This renders identically on every device and can never
+  // clip. Returns the jsPDF doc, or null if the library is unavailable.
+  function buildInvoiceDoc() {
+    const JsPDF = window.jspdf && window.jspdf.jsPDF;
+    if (!JsPDF) return null;
+
+    const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const PW = 210, M = 12, RIGHT = PW - M, CW = PW - 2 * M;
+    const NAVY = [31, 58, 147], GRAY = [107, 114, 128], DARK = [28, 36, 48],
+          SEP = [228, 231, 238], BODY = [75, 85, 99], BOXBG = [248, 250, 252];
+    const setC = c => doc.setTextColor(c[0], c[1], c[2]);
+    const money = n => "Tk " + (parseFloat(n) || 0)
+      .toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ---- gather values ----
+    const name = ($("custName").value || "").trim() || "Customer Name";
+    const mobile = ($("mobile").value || "").trim() || "-";
+    const bookingId = ($("bookingId").value || "").trim();
+    const roomType = ($("roomType").value || "").trim() || "-";
+    const civ = $("checkIn").value, cov = $("checkOut").value;
+    const ci = prettyDate(civ), co = prettyDate(cov);
+    let nights = 0;
+    if (civ && cov) nights = Math.round((new Date(cov + "T00:00:00") - new Date(civ + "T00:00:00")) / 86400000);
+    const total = parseFloat($("totalAmount").value) || 0;
+    const prevPaid = parseFloat($("prevPaid").value) || 0;
+    const paidNow = parseFloat($("payableAmount").value) || 0;
+    const totalPaid = prevPaid + paidNow;
+    let due = total - totalPaid; if (due < 0) due = 0;
+    const method = methodDisplay();
+    const payDate = prettyDate($("payDate").value);
+    const txn = ($("payMethod").value === "Cash") ? "N/A (Cash)" : (($("txnId").value || "").trim() || "-");
+
+    // ===== HEADER =====
+    const logo = getLogoDataUrl();
+    if (logo) { try { doc.addImage(logo, "JPEG", M, 11, 26, 26); } catch (e) {} }
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setC(NAVY);
+    doc.text(RESORT.name, M, 43);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); setC(GRAY);
+    doc.text(RESORT.location, M, 47.5);
+    doc.text("Phone: " + RESORT.phone, M, 51);
+    doc.text("Email: " + RESORT.email, M, 54.5);
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(23); setC(NAVY);
+    doc.text("INVOICE", RIGHT, 21, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC(GRAY);
+    let my = 28;
+    doc.text("Invoice #: " + INV_NO, RIGHT, my, { align: "right" }); my += 4.5;
+    if (bookingId) { doc.text("Booking ID: " + bookingId, RIGHT, my, { align: "right" }); my += 4.5; }
+    doc.text("Date: " + payDate, RIGHT, my, { align: "right" });
+
+    doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]); doc.setLineWidth(0.5);
+    doc.line(M, 59, RIGHT, 59);
+
+    // ===== BILLED TO =====
+    let y = 67;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setC(GRAY);
+    doc.text("BILLED TO", M, y);
+    y += 5.5; doc.setFont("helvetica", "bold"); doc.setFontSize(12); setC(DARK);
+    doc.text(name, M, y);
+    y += 5; doc.setFont("helvetica", "normal"); doc.setFontSize(9); setC(GRAY);
+    doc.text(mobile, M, y);
+
+    y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setC(GRAY);
+    doc.text("ROOM TYPE", M, y);
+    y += 4.5; doc.setFont("helvetica", "normal"); doc.setFontSize(10); setC(DARK);
+    doc.text(roomType, M, y);
+
+    y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setC(GRAY);
+    const c1 = M, c2 = M + 55, c3 = M + 95;
+    doc.text("CHECK-IN", c1, y); doc.text("CHECK-OUT", c2, y); if (nights > 0) doc.text("NIGHTS", c3, y);
+    y += 4.5; doc.setFont("helvetica", "normal"); doc.setFontSize(10); setC(DARK);
+    doc.text(ci, c1, y); doc.text(co, c2, y);
+    if (nights > 0) doc.text(nights + (nights === 1 ? " night" : " nights"), c3, y);
+
+    y += 6; doc.setFont("helvetica", "italic"); doc.setFontSize(8); setC(GRAY);
+    doc.text("Standard Check-In: " + RESORT.checkInTime + "   |   Check-Out: " + RESORT.checkOutTime, M, y);
+
+    // ===== AMOUNTS =====
+    y += 11;
+    const amtRow = (label, val, opts) => {
+      opts = opts || {};
+      if (opts.topBorder) { doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]); doc.setLineWidth(0.5); }
+      else { doc.setDrawColor(SEP[0], SEP[1], SEP[2]); doc.setLineWidth(0.2); }
+      doc.line(M, y - 5, RIGHT, y - 5);
+      doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+      doc.setFontSize(opts.bold ? 12 : 10.5);
+      setC(opts.bold ? NAVY : GRAY); doc.text(label, M, y);
+      setC(opts.bold ? NAVY : DARK); doc.text(val, RIGHT, y, { align: "right" });
+      y += 8;
+    };
+    amtRow("Total Amount", money(total));
+    if (prevPaid > 0) amtRow("Previously Paid", money(prevPaid));
+    amtRow("Paid Now", money(paidNow));
+    amtRow("Due Amount", money(due));
+    amtRow("Total Paid", money(totalPaid), { bold: true, topBorder: true });
+
+    // ===== PAYMENT INFO BOX =====
+    y += 1;
+    const boxH = 23;
+    doc.setFillColor(BOXBG[0], BOXBG[1], BOXBG[2]);
+    doc.setDrawColor(SEP[0], SEP[1], SEP[2]); doc.setLineWidth(0.2);
+    doc.roundedRect(M, y, CW, boxH, 2, 2, "FD");
+    let py = y + 7; doc.setFontSize(9.5);
+    [["Payment Method", method], ["Payment Date", payDate], ["Transaction ID", txn]].forEach(row => {
+      doc.setFont("helvetica", "normal"); setC(GRAY); doc.text(row[0], M + 5, py);
+      doc.setFont("helvetica", "bold"); setC(DARK); doc.text(row[1], RIGHT - 5, py, { align: "right" });
+      py += 6.5;
+    });
+    y += boxH + 8;
+
+    // ===== TERMS =====
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setC(GRAY);
+    doc.text("TERMS & CONDITIONS", M, y); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); setC(BODY);
+    const terms = Array.from(document.querySelectorAll(".terms ol li")).map(li => li.textContent.trim());
+    terms.forEach((t, i) => {
+      const lines = doc.splitTextToSize(t, CW - 5);
+      doc.text((i + 1) + ".", M, y);
+      doc.text(lines, M + 5, y);
+      y += lines.length * 3.9 + 1.4;
+    });
+
+    y += 2; doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setC(GRAY);
+    doc.text("CANCELLATION POLICY", M, y); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); setC(BODY);
+    const cancEl = document.querySelector(".terms p");
+    const cancLines = doc.splitTextToSize(cancEl ? cancEl.textContent.trim() : "", CW);
+    doc.text(cancLines, M, y); y += cancLines.length * 3.9;
+
+    // ===== SIGNATURE =====
+    y += 13;
+    doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+    doc.line(RIGHT - 62, y, RIGHT, y); y += 4.5;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(9); setC(BODY);
+    doc.text("System Generated Invoice", RIGHT, y, { align: "right" }); y += 4.5;
+    doc.text("(Authorised Signature)", RIGHT, y, { align: "right" });
+
+    // ===== FOOTER =====
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); setC(GRAY);
+    doc.text("This is a system generated invoice and does not require a physical signature.",
+      PW / 2, 290, { align: "center" });
+
+    window.__pdfEndY = y; // debug: last content y
+    return doc;
+  }
+
+  // Validate, then generate + download the PDF.
+  function downloadPDF() {
+    if (!validateForReady()) return;
     const btn = $("pdfBtn");
     const original = btn.textContent;
-
-    if (typeof window.html2pdf === "undefined") {
-      // Library failed to load (e.g. offline) — fall back to print dialog
-      alert("PDF library could not load. Opening the print dialog instead — choose \"Save as PDF\" there.");
-      window.print();
-      return;
-    }
-
     btn.disabled = true;
     btn.textContent = "Generating…";
-
-    const el = $("invoice");
-    const origLogo = $("logoImg");
-
-    // Force a capture-friendly layout: the invoice becomes a full-width,
-    // single-column block at the top-left of the page. Capturing the REAL
-    // element (not an off-screen clone) renders reliably on phones, and the
-    // single-column layout avoids the multi-column offset that clipped the PDF.
-    document.body.classList.add("capturing");
-    window.scrollTo(0, 0);
-    await new Promise(r => setTimeout(r, 90)); // let layout settle
-
     try {
-      // Measure the logo's position within the invoice (for compositing).
-      let logoBox = null;
-      if (origLogo && origLogo.complete && origLogo.naturalWidth &&
-          origLogo.getBoundingClientRect().width) {
-        const eR = el.getBoundingClientRect();
-        const lR = origLogo.getBoundingClientRect();
-        logoBox = { x: lR.left - eR.left, y: lR.top - eR.top, w: lR.width, h: lR.height };
+      const doc = buildInvoiceDoc();
+      if (!doc) {
+        alert("PDF library could not load. Opening the print dialog instead — choose \"Save as PDF\".");
+        window.print();
+        return;
       }
-      const renderWidth = el.offsetWidth;
-      const renderHeight = el.scrollHeight;
-
-      // Step 1: capture the real invoice element. Pin the capture rectangle
-      // AND the virtual window to the element's exact size so html2canvas
-      // can't drift with the device's scroll position or viewport width
-      // (which was clipping the left side on some phones).
-      const captured = await html2pdf().set({
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          width: renderWidth,
-          height: renderHeight,
-          windowWidth: renderWidth,
-          windowHeight: renderHeight
-        }
-      }).from(el).toCanvas().get("canvas");
-
-      // Composite onto a FRESH canvas we fully control, then repaint the real
-      // logo on top (html2canvas can be unreliable drawing images).
-      const canvas = document.createElement("canvas");
-      canvas.width = captured.width;
-      canvas.height = captured.height;
-      const cctx = canvas.getContext("2d");
-      cctx.fillStyle = "#ffffff";
-      cctx.fillRect(0, 0, canvas.width, canvas.height);
-      cctx.drawImage(captured, 0, 0);
-      if (logoBox && origLogo && renderWidth) {
-        try {
-          const sx = captured.width / renderWidth;
-          cctx.drawImage(
-            origLogo, logoBox.x * sx, logoBox.y * sx, logoBox.w * sx, logoBox.h * sx
-          );
-        } catch (e) { /* capture already has whatever html2canvas drew */ }
-      }
-
-      // Step 2: one-page PDF sized to the content. Keep standard A4 when it
-      // fits; only grow taller if needed (never spills to a 2nd page).
-      const margin = 8;
-      const pageW = 210;
-      const usableW = pageW - margin * 2;
-      const imgH = usableW * canvas.height / canvas.width;
-      const pageH = Math.max(297, Math.ceil(imgH + margin * 2));
-
-      await html2pdf().set({
-        margin: margin,
-        filename: pdfFileName(),
-        image: { type: "jpeg", quality: 0.98 },
-        jsPDF: { unit: "mm", format: [pageW, pageH], orientation: "portrait" }
-      }).from(canvas, "canvas").save();
+      doc.save(pdfFileName());
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("Sorry, the PDF could not be generated. Try the Print button and choose \"Save as PDF\".");
     } finally {
-      document.body.classList.remove("capturing");
       btn.disabled = false;
       btn.textContent = original;
     }
