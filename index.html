@@ -99,7 +99,7 @@
     background: #fff;
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 40px;
+    padding: 30px;
     box-shadow: 0 1px 3px rgba(0,0,0,.04);
   }
 
@@ -108,10 +108,10 @@
     justify-content: space-between;
     align-items: flex-start;
     border-bottom: 2px solid var(--brand);
-    padding-bottom: 20px;
-    margin-bottom: 24px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
   }
-  .inv-logo img { max-height: 110px; max-width: 200px; object-fit: contain; }
+  .inv-logo img { max-height: 92px; max-width: 190px; object-fit: contain; }
   .inv-logo .placeholder {
     height: 70px; width: 180px;
     border: 1px dashed var(--border);
@@ -127,7 +127,7 @@
   .inv-title h2 { margin: 0; font-size: 30px; letter-spacing: 2px; color: var(--brand); }
   .inv-title .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-  .bill-to { margin-bottom: 24px; }
+  .bill-to { margin-bottom: 16px; }
   .bill-to .heading {
     font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
     color: var(--muted); margin-bottom: 4px;
@@ -147,23 +147,23 @@
   }
   .stay-info .v { font-size: 14px; font-weight: 600; color: var(--text); }
 
-  table.amounts { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  table.amounts td { padding: 10px 4px; font-size: 14px; }
+  table.amounts { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  table.amounts td { padding: 7px 4px; font-size: 14px; }
   table.amounts tr + tr td { border-top: 1px solid #eef1f6; }
   table.amounts td.label { color: #4b5563; }
   table.amounts td.value { text-align: right; font-variant-numeric: tabular-nums; }
   table.amounts tr.total td {
     border-top: 2px solid var(--brand);
     font-weight: 700; font-size: 16px; color: var(--brand);
-    padding-top: 12px;
+    padding-top: 9px;
   }
 
   .pay-info {
-    margin-top: 26px;
+    margin-top: 16px;
     background: #f9fafc;
     border: 1px solid #eef1f6;
     border-radius: 10px;
-    padding: 16px 18px;
+    padding: 12px 16px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px 24px;
@@ -173,22 +173,23 @@
   .pay-info .v { font-weight: 600; text-align: right; }
 
   .terms {
-    margin-top: 26px;
+    margin-top: 16px;
     border-top: 1px solid #eef1f6;
-    padding-top: 16px;
+    padding-top: 12px;
   }
   .terms .heading {
     font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-    color: var(--muted); margin-bottom: 8px;
+    color: var(--muted); margin-bottom: 6px;
   }
   .terms ol {
     margin: 0; padding-left: 18px;
-    font-size: 12px; color: #4b5563;
+    font-size: 11.5px; color: #4b5563; line-height: 1.45;
   }
-  .terms li { margin-bottom: 4px; }
+  .terms li { margin-bottom: 3px; }
+  .terms p { margin: 0; font-size: 11.5px; color: #4b5563; line-height: 1.45; }
 
   .signature {
-    margin-top: 48px;
+    margin-top: 26px;
     text-align: right;
   }
   .signature .line {
@@ -202,7 +203,7 @@
   }
 
   .foot-note {
-    margin-top: 30px;
+    margin-top: 16px;
     text-align: center;
     font-size: 11px;
     color: var(--muted);
@@ -239,7 +240,19 @@
 
         <div class="field">
           <label>Room Type <span class="req">*</span></label>
-          <input type="text" id="roomType" required placeholder="e.g. Deluxe Couple (Sea View)" />
+          <select id="roomType" required>
+            <option value="">-- Select --</option>
+            <option>Deluxe Couple Sea View AC</option>
+            <option>Deluxe Couple Road Side AC</option>
+            <option>Premium Couple Sea View AC</option>
+            <option>Executive Couple Side Sea View AC</option>
+            <option>Standard Couple Sea View AC</option>
+            <option>Standard Couple Road Side AC</option>
+            <option>Standard Couple Sea View Non-AC</option>
+            <option>Deluxe Double Sea View AC</option>
+            <option>Deluxe Family Side Sea View AC</option>
+            <option>Standard Double Road Side AC</option>
+          </select>
         </div>
 
         <div class="row2">
@@ -381,15 +394,19 @@
       <div class="v" id="vTxn">—</div>
     </div>
 
-    <!-- Demo terms — replace with your real terms & conditions later -->
     <div class="terms">
       <div class="heading">Terms &amp; Conditions</div>
       <ol>
-        <li>Payment once made is non-refundable and non-transferable.</li>
-        <li>This invoice is valid only upon receipt of the full payable amount.</li>
-        <li>Any due amount must be cleared within 7 days of the invoice date.</li>
-        <li>Please retain this invoice for your records and future reference.</li>
+        <li>Room may not be guaranteed for early check-in unless pre-reserved, and is subject to room availability; charges may be applied.</li>
+        <li>Children under 5 years will not be charged for any service; those above 5 years are considered adults and will be chargeable for breakfast and other services.</li>
+        <li>Extra guest &amp; mattress charge is BDT 700/- per night, per person, with complimentary breakfast.</li>
+        <li>Guests are requested to present valid photo identification (such as Passport, Original Driving License, or National ID Card, etc.) during check-in.</li>
+        <li>Valid Passport &amp; Visa is mandatory for foreigners, to be presented at the reception desk during check-in.</li>
+        <li>Dinner last order time is 10:00 PM &amp; last food serving time is 11:00 PM.</li>
+        <li>Outside food, pets, alcohol / hard drinks &amp; firearms are not allowed on our premises.</li>
       </ol>
+      <div class="heading" style="margin-top:12px">Cancellation Policy</div>
+      <p>Once the reservation is made and the payment is processed, no refund will be issued for any reason, except in the event of a natural disaster or political crisis.</p>
     </div>
 
     <div class="signature">
@@ -408,9 +425,9 @@
   // ===== Resort details — EDIT THESE with your real information =====
   const RESORT = {
     name: "Nilima Beach Resort",
-    location: "— location / address —",
-    phone: "— phone number —",
-    email: "— email —"
+    location: "Sea in Point, Sugandha Beach, Cox's Bazar, Bangladesh",
+    phone: "01831878833, 01333316942",
+    email: "nilimabeachresort.bd@gmail.com"
   };
 
   // Currency symbol — change as needed
