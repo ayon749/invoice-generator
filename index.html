@@ -258,9 +258,15 @@
           <input type="tel" id="mobile" required placeholder="e.g. 01700000000" />
         </div>
 
-        <div class="field">
-          <label>Booking ID <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-          <input type="text" id="bookingId" placeholder="e.g. 1189" />
+        <div class="row2">
+          <div class="field">
+            <label>Booking ID <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+            <input type="text" id="bookingId" placeholder="e.g. 1189" />
+          </div>
+          <div class="field">
+            <label>Booking Date <span class="req">*</span></label>
+            <input type="date" id="bookingDate" required />
+          </div>
         </div>
 
         <div class="field">
@@ -544,7 +550,7 @@
     $("dueAmount").value = due.toFixed(2);
 
     $("invNo").textContent = INV_NO;
-    $("invDate").textContent = prettyDate($("payDate").value);
+    $("invDate").textContent = prettyDate($("bookingDate").value);
 
     // Booking ID (optional) — show in header only when provided
     const bid = $("bookingId").value.trim();
@@ -677,6 +683,7 @@
     const totalPaid = prevPaid + paidNow;
     let due = total - discount - totalPaid; if (due < 0) due = 0;
     const method = methodDisplay();
+    const bookingDate = prettyDate($("bookingDate").value);
     const payDate = prettyDate($("payDate").value);
     const txn = ($("payMethod").value === "Cash") ? "N/A (Cash)" : (($("txnId").value || "").trim() || "-");
 
@@ -697,7 +704,7 @@
     let my = 28;
     doc.text("Invoice #: " + INV_NO, RIGHT, my, { align: "right" }); my += 4.5;
     if (bookingId) { doc.text("Booking ID: " + bookingId, RIGHT, my, { align: "right" }); my += 4.5; }
-    doc.text("Date: " + payDate, RIGHT, my, { align: "right" });
+    doc.text("Date: " + bookingDate, RIGHT, my, { align: "right" });
 
     doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]); doc.setLineWidth(0.5);
     doc.line(M, 59, RIGHT, 59);
@@ -821,7 +828,7 @@
   }
 
   // Wire up events
-  ["custName","mobile","bookingId","roomType","checkIn","checkOut","totalAmount","discount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
+  ["custName","mobile","bookingId","bookingDate","roomType","checkIn","checkOut","totalAmount","discount","prevPaid","payableAmount","payDate","payMethod","mbProvider","txnId"]
     .forEach(id => {
       $(id).addEventListener("input", render);
       $(id).addEventListener("change", render);
@@ -848,11 +855,13 @@
       "Standard Check-In: " + RESORT.checkInTime + "  •  Check-Out: " + RESORT.checkOutTime;
   }
 
-  // Default payment date = today
+  // Default payment date & booking date = today
   (function init() {
     const t = new Date();
     const pad = x => String(x).padStart(2, "0");
-    $("payDate").value = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    const today = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    $("payDate").value = today;
+    $("bookingDate").value = today;
     fillResortInfo();
     updateConditionalFields();
     render();
